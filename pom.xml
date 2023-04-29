@@ -755,6 +755,8 @@
 	</build>
 
 	<properties>
+		<sonar.organization>the-programming-collective</sonar.organization>
+  		<sonar.host.url>https://sonarcloud.io</sonar.host.url>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<cpsolver.version>1.4-SNAPSHOT</cpsolver.version>
 		<hibernate.version>4.3.11.Final</hibernate.version>
