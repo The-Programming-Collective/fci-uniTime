@@ -18,6 +18,11 @@
  * 
  -->
 # UniTime
+SonarCloud for static code analysis
+<https://sonarcloud.io/summary/overall?id=The-Programming-Collective_fci-uniTime>
+
+Jira for as a ticketing system
+<https://fareskarim.atlassian.net/jira/software/c/projects/FCAI/issues>
 
 Comprehensive University Timetabling System
 <https://www.unitime.org>
