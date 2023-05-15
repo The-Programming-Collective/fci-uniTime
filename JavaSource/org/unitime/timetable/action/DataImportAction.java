@@ -66,6 +66,13 @@ import org.unitime.timetable.util.Formats;
 import org.unitime.timetable.util.queue.QueueItem;
 
 
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipEntry;
+import java.io.InputStream;
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+
+
 /** 
  * @author Tomas Muller
  */
@@ -315,17 +322,49 @@ public class DataImportAction extends UniTimeAction<DataImportForm> {
 			} else if (iForm.getFileFileName().toLowerCase().endsWith(".zip")) {
 				ZipInputStream zipInput = new ZipInputStream(fis);
 				ZipEntry ze = null;
+
+
+
+				final long MAX_DECOMPRESSED_SIZE = 100_000_000L; // 100 MB
+				final int MAX_ENTRIES = 1000;
+				final double MAX_COMPRESSION_RATIO = 100.0;
+
+				long totalDecompressedSize = 0;
+				int entryCount = 0;
+
+
 				while ((ze = zipInput.getNextEntry()) != null) {
 					if (ze.isDirectory()) continue;
+
+					// Check entry count limit
+					entryCount++;
+					if (entryCount > MAX_ENTRIES) {
+						throw new IllegalStateException("Too many entries in the zip file");
+					}
+
+					// Check compression ratio
+					long compressedSize = ze.getCompressedSize();
+					long decompressedSize = ze.getSize();
+					if (compressedSize > 0 && decompressedSize / (double) compressedSize > MAX_COMPRESSION_RATIO) {
+						throw new IllegalStateException("Suspicious compression ratio in zip entry " + ze.getName());
+					}
+
+					// Update total decompressed size
+					totalDecompressedSize += decompressedSize;
+					if (totalDecompressedSize > MAX_DECOMPRESSED_SIZE) {
+						throw new IllegalStateException("Total decompressed size exceeds the limit");
+					}
+
+					// original processing code
 					setStatus("Importing " + ze.getName() + "...");
 					if (ze.getName().endsWith(".dat")) {
-						SessionRestoreInterface restore = (SessionRestoreInterface)Class.forName(ApplicationProperty.SessionRestoreInterface.value()).getConstructor().newInstance();
+						SessionRestoreInterface restore = (SessionRestoreInterface) Class.forName(ApplicationProperty.SessionRestoreInterface.value()).getConstructor().newInstance();
 						restore.restore(zipInput, this);
 					} else {
 						DataExchangeHelper.importDocument((new SAXReader()).read(new NotClosingInputStream(zipInput)), getOwnerId(), this);
 					}
 				}
-				zipInput.close();
+
 			} else {
 				DataExchangeHelper.importDocument((new SAXReader()).read(fis), getOwnerId(), this);
 			}
