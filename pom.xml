@@ -537,6 +537,11 @@
 		</resources>
 		<plugins>
 			<plugin>
+			    <groupId>org.codehaus.mojo</groupId>
+			    <artifactId>sonar-maven-plugin</artifactId>
+			    <version>3.0.2</version>
+			</plugin>
+			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-resources-plugin</artifactId>
 				<version>3.2.0</version>
@@ -563,6 +568,11 @@
 					</archive>
 				</configuration>
 			</plugin>
+			<plugin>
+	            <groupId>org.sonarsource.scanner.maven</groupId>
+	            <artifactId>sonar-maven-plugin</artifactId>
+	            <version>${sonar-maven-plugin.version}</version>
+        	</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -755,6 +765,8 @@
 	</build>
 
 	<properties>
+	    <sonar.version>9.5</sonar.version>
+	    <sonar-maven-plugin.version>3.9.1.2184</sonar-maven-plugin.version>
 		<sonar.organization>the-programming-collective</sonar.organization>
   		<sonar.host.url>https://sonarcloud.io</sonar.host.url>
   		<sonar.sources>JavaSource</sonar.sources>
