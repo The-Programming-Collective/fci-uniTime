@@ -344,7 +344,7 @@ public class DataImportAction extends UniTimeAction<DataImportForm> {
 
 					// Check compression ratio
 					long compressedSize = ze.getCompressedSize();
-					long decompressedSize = ze.getSize();
+					long decompressedSize = calculateDecompressedSize(zipInput);
 					if (compressedSize > 0 && decompressedSize / (double) compressedSize > MAX_COMPRESSION_RATIO) {
 						throw new IllegalStateException("Suspicious compression ratio in zip entry " + ze.getName());
 					}
@@ -371,6 +371,19 @@ public class DataImportAction extends UniTimeAction<DataImportForm> {
 			} finally {
 				fis.close();
 			}
+		}
+		private long calculateDecompressedSize(InputStream inputStream) throws IOException {
+			byte[] buffer = new byte[1024];
+			long size = 0;
+			int bytesRead;
+			ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+		
+			while ((bytesRead = inputStream.read(buffer)) != -1) {
+				outputStream.write(buffer, 0, bytesRead);
+				size += bytesRead;
+			}
+		
+			return size;
 		}
 
 	}
