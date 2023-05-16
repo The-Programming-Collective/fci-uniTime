@@ -31,6 +31,8 @@ import java.util.Properties;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipFile;
+import java.util.Enumeration;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -321,38 +323,37 @@ public class DataImportAction extends UniTimeAction<DataImportForm> {
 				DataExchangeHelper.importDocument((new SAXReader()).read(gzipInput), getOwnerId(), this);
 				gzipInput.close();
 			} else if (iForm.getFileFileName().toLowerCase().endsWith(".zip")) {
-				ZipInputStream zipInput = new ZipInputStream(fis);
-				ZipEntry ze = null;
 
+				ZipFile zipFile = new ZipFile(iForm.getFileFileName());
+				Enumeration<? extends ZipEntry> entries = zipFile.entries();
 
+				int THRESHOLD_ENTRIES = 10000;
+				int THRESHOLD_SIZE = 1000000000; // 1 GB
+				double THRESHOLD_RATIO = 10;
+				int totalSizeArchive = 0;
+				int totalEntryArchive = 0;
 
-				final long MAX_DECOMPRESSED_SIZE = 100_000_000L; // 100 MB
-				final int MAX_ENTRIES = 1000;
-				final double MAX_COMPRESSION_RATIO = 100.0;
-
-				long totalDecompressedSize = 0;
-				int entryCount = 0;
-
-
-				while ((ze = zipInput.getNextEntry()) != null) {
-					if (ze.isDirectory()) continue;
+				while(entries.hasMoreElements()) {
+				  ZipEntry ze = entries.nextElement();
+				  ZipInputStream zipInput = new ZipInputStream(fis);
+				  if (ze.isDirectory()) continue;
 
 					// Check entry count limit
-					entryCount++;
-					if (entryCount > MAX_ENTRIES) {
+				  totalEntryArchive++;
+				  	if (totalEntryArchive > THRESHOLD_ENTRIES) {
 						throw new IllegalStateException("Too many entries in the zip file");
 					}
 
 					// Check compression ratio
 					long compressedSize = ze.getCompressedSize();
 					long decompressedSize = calculateDecompressedSize(zipInput);
-					if (compressedSize > 0 && decompressedSize / (double) compressedSize > MAX_COMPRESSION_RATIO) {
+					if (compressedSize > 0 && decompressedSize / (double) compressedSize > THRESHOLD_RATIO) {
 						throw new IllegalStateException("Suspicious compression ratio in zip entry " + ze.getName());
 					}
 
 					// Update total decompressed size
-					totalDecompressedSize += decompressedSize;
-					if (totalDecompressedSize > MAX_DECOMPRESSED_SIZE) {
+					totalSizeArchive += decompressedSize;
+					if (totalSizeArchive > THRESHOLD_SIZE) {
 						throw new IllegalStateException("Total decompressed size exceeds the limit");
 					}
 
@@ -365,7 +366,6 @@ public class DataImportAction extends UniTimeAction<DataImportForm> {
 						DataExchangeHelper.importDocument((new SAXReader()).read(new NotClosingInputStream(zipInput)), getOwnerId(), this);
 					}
 				}
-
 			} else {
 				DataExchangeHelper.importDocument((new SAXReader()).read(fis), getOwnerId(), this);
 			}
@@ -383,7 +383,6 @@ public class DataImportAction extends UniTimeAction<DataImportForm> {
 				outputStream.write(buffer, 0, bytesRead);
 				size += bytesRead;
 			}
-		
 			return size;
 		}
 
