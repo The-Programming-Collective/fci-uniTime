@@ -19,16 +19,19 @@
 */
 package org.unitime.timetable.action;
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.DecimalFormat;
 import java.util.Date;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 
 import javax.servlet.http.HttpServletRequest;
@@ -39,10 +42,10 @@ import org.apache.struts2.convention.annotation.Result;
 import org.apache.struts2.tiles.annotation.TilesDefinition;
 import org.apache.struts2.tiles.annotation.TilesPutAttribute;
 import org.cpsolver.ifs.util.Progress;
-import org.dom4j.Document;
 import org.dom4j.io.OutputFormat;
 import org.dom4j.io.SAXReader;
 import org.dom4j.io.XMLWriter;
+import org.dom4j.Document;
 import org.unitime.commons.Debug;
 import org.unitime.commons.Email;
 import org.unitime.commons.web.WebTable;
@@ -313,10 +316,41 @@ public class DataImportAction extends UniTimeAction<DataImportForm> {
 				DataExchangeHelper.importDocument((new SAXReader()).read(gzipInput), getOwnerId(), this);
 				gzipInput.close();
 			} else if (iForm.getFileFileName().toLowerCase().endsWith(".zip")) {
-				ZipInputStream zipInput = new ZipInputStream(fis);
-				ZipEntry ze = null;
-				while ((ze = zipInput.getNextEntry()) != null) {
-					if (ze.isDirectory()) continue;
+
+				ZipFile zipFile = new ZipFile(iForm.getFileFileName());
+				Enumeration<? extends ZipEntry> entries = zipFile.entries();
+
+				int THRESHOLD_ENTRIES = 10000;
+				int THRESHOLD_SIZE = 1000000000; // 1 GB
+				double THRESHOLD_RATIO = 10;
+				int totalSizeArchive = 0;
+				int totalEntryArchive = 0;
+
+				while(entries.hasMoreElements()) {
+				  ZipEntry ze = entries.nextElement();
+				  ZipInputStream zipInput = new ZipInputStream(fis);
+				  if (ze.isDirectory()) continue;
+
+					// Check entry count limit
+				  totalEntryArchive++;
+				  	if (totalEntryArchive > THRESHOLD_ENTRIES) {
+						throw new IllegalStateException("Too many entries in the zip file");
+					}
+
+					// Check compression ratio
+					long compressedSize = ze.getCompressedSize();
+					long decompressedSize = calculateDecompressedSize(zipInput);
+					if (compressedSize > 0 && decompressedSize / (double) compressedSize > THRESHOLD_RATIO) {
+						throw new IllegalStateException("Suspicious compression ratio in zip entry " + ze.getName());
+					}
+
+					// Update total decompressed size
+					totalSizeArchive += decompressedSize;
+					if (totalSizeArchive > THRESHOLD_SIZE) {
+						throw new IllegalStateException("Total decompressed size exceeds the limit");
+					}
+
+					// original processing code
 					setStatus("Importing " + ze.getName() + "...");
 					if (ze.getName().endsWith(".dat")) {
 						SessionRestoreInterface restore = (SessionRestoreInterface)Class.forName(ApplicationProperty.SessionRestoreInterface.value()).getConstructor().newInstance();
@@ -325,13 +359,24 @@ public class DataImportAction extends UniTimeAction<DataImportForm> {
 						DataExchangeHelper.importDocument((new SAXReader()).read(new NotClosingInputStream(zipInput)), getOwnerId(), this);
 					}
 				}
-				zipInput.close();
 			} else {
 				DataExchangeHelper.importDocument((new SAXReader()).read(fis), getOwnerId(), this);
 			}
 			} finally {
 				fis.close();
 			}
+		}
+		private long calculateDecompressedSize(InputStream inputStream) throws IOException {
+			byte[] buffer = new byte[1024];
+			long size = 0;
+			int bytesRead;
+			ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+		
+			while ((bytesRead = inputStream.read(buffer)) != -1) {
+				outputStream.write(buffer, 0, bytesRead);
+				size += bytesRead;
+			}
+			return size;
 		}
 
 	}
