@@ -23,7 +23,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ByteArrayOutputStream;
 import java.text.DecimalFormat;
 import java.util.Date;
 import java.util.List;
@@ -67,13 +66,6 @@ import org.unitime.timetable.security.rights.Right;
 import org.unitime.timetable.util.Constants;
 import org.unitime.timetable.util.Formats;
 import org.unitime.timetable.util.queue.QueueItem;
-
-
-import java.util.zip.ZipInputStream;
-import java.util.zip.ZipEntry;
-import java.io.InputStream;
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
 
 
 /** 
@@ -360,12 +352,13 @@ public class DataImportAction extends UniTimeAction<DataImportForm> {
 					// original processing code
 					setStatus("Importing " + ze.getName() + "...");
 					if (ze.getName().endsWith(".dat")) {
-						SessionRestoreInterface restore = (SessionRestoreInterface) Class.forName(ApplicationProperty.SessionRestoreInterface.value()).getConstructor().newInstance();
+						SessionRestoreInterface restore = (SessionRestoreInterface)Class.forName(ApplicationProperty.SessionRestoreInterface.value()).getConstructor().newInstance();
 						restore.restore(zipInput, this);
 					} else {
 						DataExchangeHelper.importDocument((new SAXReader()).read(new NotClosingInputStream(zipInput)), getOwnerId(), this);
 					}
 				}
+				zipInput.close();
 			} else {
 				DataExchangeHelper.importDocument((new SAXReader()).read(fis), getOwnerId(), this);
 			}
